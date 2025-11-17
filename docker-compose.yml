@@ -1,0 +1,77 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: mongo
+    restart: unless-stopped
+    networks:
+      - appnet
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: matuabom
+
+  be:
+    image: 774023531956.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-be:latest
+    container_name: be
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    networks:
+      - appnet
+    environment:
+      SPRING_DATA_MONGODB_URI: 'mongodb://mongo:27017/matuabom'
+
+      JWT_SECRET: '${JWT_SECRET}'
+
+      KAKAO_CLIENT_ID: '${KAKAO_CLIENT_ID}'
+      KAKAO_CLIENT_SECRET: '${KAKAO_CLIENT_SECRET}'
+      KAKAO_REDIRECT_URI: 'http://matuabom.store/login/oauth2/code/kakao'
+
+      GOOGLE_CLIENT_ID: '${GOOGLE_CLIENT_ID}'
+      GOOGLE_CLIENT_SECRET: '${GOOGLE_CLIENT_SECRET}'
+      GOOGLE_REDIRECT_URI: 'http://matuabom.store/login/oauth2/code/google'
+
+      FRONTEND_ORIGIN: 'https://matuabom.store'
+      BACKEND_BASE_URL: 'https://matuabom.store'
+
+    ports:
+      - '8080:8080'
+
+  fe:
+    image: 774023531956.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-fe:latest
+    container_name: fe
+    restart: unless-stopped
+    depends_on:
+      - be
+    networks:
+      - appnet
+    environment:
+      NEXT_PUBLIC_API_BASE: 'https://matuabom.store'
+      NODE_ENV: 'production'
+    ports:
+      - '3000:3000'
+
+  nginx:
+    image: nginx:1.27
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - fe
+      - be
+    networks:
+      - appnet
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
+volumes:
+  mongo_data:
+
+networks:
+  appnet:
+    driver: bridge
