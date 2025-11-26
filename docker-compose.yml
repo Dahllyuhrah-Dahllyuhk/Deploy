@@ -6,7 +6,6 @@ services:
     networks:
       - appnet
     ports:
-      # 🔥 [수정] 외부 접속 차단, 로컬호스트에서만 접속 허용 (보안 강화)
       - '127.0.0.1:27017:27017'
     volumes:
       - mongo_data:/data/db
@@ -54,6 +53,21 @@ services:
     ports:
       - '3000:3000'
 
+  # --------------- AI 모델 서비스 추가 영역 ---------------
+  AI:
+    image: 774023531956.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-ai:latest
+    container_name: AI
+    restart: unless-stopped
+    depends_on:
+      - be
+    networks:
+      - appnet
+    environment:
+      OPENAI_API_KEY: '${OPENAI_API_KEY}'
+      # 추가 환경변수 필요하면 여기에 사용
+    ports:
+      - '5000:5000'
+
   nginx:
     image: nginx:1.27
     container_name: nginx
@@ -61,6 +75,7 @@ services:
     depends_on:
       - fe
       - be
+      - AI
     networks:
       - appnet
     ports:
