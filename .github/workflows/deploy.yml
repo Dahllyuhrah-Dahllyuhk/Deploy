@@ -1,0 +1,45 @@
+name: Deploy Config & Full Stack
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. 소스 체크아웃 ────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. nginx.conf + docker-compose.yml을 서버로 업로드 ──────────────
+      - name: Upload config files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host:     ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key:      ${{ secrets.DEPLOY_KEY }}
+          source:   "nginx/nginx.conf,docker-compose.yml"
+          target:   "/home/ubuntu/matuabom"
+
+      # ── 3. nginx 설정 리로드 ─────────────────────────────────────────────
+      - name: Reload nginx
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key:      ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd /home/ubuntu/matuabom
+
+            # nginx 설정 문법 검증
+            docker compose exec nginx nginx -t
+            if [ $? -ne 0 ]; then
+              echo "nginx 설정 오류 — 리로드 취소"
+              exit 1
+            fi
+
+            docker compose exec nginx nginx -s reload
+            echo "nginx 리로드 완료"
