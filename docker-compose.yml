@@ -41,7 +41,7 @@ services:
   # ── Backend (Spring Boot) ────────────────────────────────────────────
   be:
     env_file: .env
-    image: 774023531956.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-be:latest
+    image: 978022759902.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-be:latest
     container_name: be
     restart: unless-stopped
     depends_on:
@@ -83,7 +83,7 @@ services:
 
   # ── Frontend (Next.js) ───────────────────────────────────────────────
   fe:
-    image: 774023531956.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-fe:latest
+    image: 978022759902.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-fe:latest
     container_name: fe
     restart: unless-stopped
     depends_on:
@@ -100,7 +100,7 @@ services:
   # ── AI 서비스 ─────────────────────────────────────────────────────────
   ai:
     env_file: .env
-    image: 774023531956.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-ai:latest
+    image: 978022759902.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-ai:latest
     container_name: ai
     restart: unless-stopped
     depends_on:
