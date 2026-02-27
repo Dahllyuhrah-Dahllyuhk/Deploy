@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ── Redis (RefreshToken, InviteCode 캐시, 블랙리스트) ─────────────────
   redis:
