@@ -10,11 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. 소스 체크아웃 ────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. nginx.conf + docker-compose.yml을 서버로 업로드 ──────────────
       - name: Upload config files to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -24,7 +22,6 @@ jobs:
           source:   "nginx/nginx.conf,docker-compose.yml"
           target:   "/home/ubuntu/matuabom"
 
-      # ── 3. nginx 설정 리로드 ─────────────────────────────────────────────
       - name: Reload nginx
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -34,21 +31,13 @@ jobs:
           script: |
             cd /home/ubuntu/matuabom
 
-            # nginx가 실행 중인지 확인
             NGINX_RUNNING=$(docker compose ps nginx --status running -q 2>/dev/null | wc -l)
 
             if [ "$NGINX_RUNNING" -gt "0" ]; then
-              # nginx 실행 중 → 설정 검증 후 reload
-              docker compose exec nginx nginx -t
-              if [ $? -ne 0 ]; then
-                echo "nginx 설정 오류 — 리로드 취소"
-                exit 1
-              fi
+              docker compose exec nginx nginx -t || { echo "nginx 설정 오류"; exit 1; }
               docker compose exec nginx nginx -s reload
               echo "nginx 리로드 완료"
             else
-              # nginx 미실행 → 전체 스택 최초 기동
-              echo "컨테이너 미실행 상태 — 전체 스택 기동"
+              echo "전체 스택 기동"
               docker compose up -d
-              echo "전체 스택 기동 완료"
             fi
