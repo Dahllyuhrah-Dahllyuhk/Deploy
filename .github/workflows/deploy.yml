@@ -20,7 +20,8 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key:      ${{ secrets.DEPLOY_KEY }}
           source:   "nginx/nginx.conf,docker-compose.yml"
-          target:   "/home/ubuntu/matuabom"
+          target:   "/home/ubuntu/Deploy"
+          strip_components: 1
 
       - name: Reload nginx
         uses: appleboy/ssh-action@v1.0.3
@@ -29,7 +30,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key:      ${{ secrets.DEPLOY_KEY }}
           script: |
-            cd /home/ubuntu/matuabom
+            cd /home/ubuntu/Deploy
 
             NGINX_RUNNING=$(docker compose ps nginx --status running -q 2>/dev/null | wc -l)
 
