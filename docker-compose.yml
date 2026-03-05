@@ -1,5 +1,5 @@
 services:
-  # ── Redis (RefreshToken, InviteCode 캐시, 블랙리스트) ─────────────────
+  # ── Redis ─────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -20,7 +20,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── MongoDB (Meeting, CalendarEvent, GoogleOAuthClient) ───────────────
+  # ── MongoDB ───────────────────────────────────────────────────────────
   mongo:
     image: mongo:7
     container_name: mongo
@@ -33,12 +33,12 @@ services:
       MONGO_INITDB_DATABASE: matuabom
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 30s
+      interval: 15s
       timeout: 10s
       retries: 5
       start_period: 20s
 
-  # ── Backend (Spring Boot) ────────────────────────────────────────────
+  # ── Backend (Spring Boot) ─────────────────────────────────────────────
   be:
     env_file: .env
     image: 978022759902.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-be:latest
@@ -52,17 +52,13 @@ services:
     networks:
       - appnet
     environment:
-      # MongoDB (Docker)
       SPRING_DATA_MONGODB_URI: "mongodb://mongo:27017/matuabom"
-      # PostgreSQL → AWS RDS (외부 호스트)
       POSTGRES_URL:            "${POSTGRES_URL}"
       POSTGRES_USER:           "${POSTGRES_USER}"
       POSTGRES_PASSWORD:       "${POSTGRES_PASSWORD}"
-      # Redis (Docker)
       REDIS_HOST:              "redis"
       REDIS_PORT:              "6379"
       REDIS_PASSWORD:          "${REDIS_PASSWORD}"
-      # Auth
       JWT_SECRET:              "${JWT_SECRET}"
       KAKAO_CLIENT_ID:         "${KAKAO_CLIENT_ID}"
       KAKAO_CLIENT_SECRET:     "${KAKAO_CLIENT_SECRET}"
@@ -72,51 +68,47 @@ services:
       FRONTEND_ORIGIN:         "https://matuabom.store"
       BACKEND_BASE_URL:        "https://matuabom.store"
       COOKIE_SECURE:           "true"
-    # 외부 직접 접근 차단 — nginx 경유만 허용
     expose:
       - "8080"
     healthcheck:
+      # curl은 BE push 후 이미지에 포함됨. 현재는 wget으로 유지
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
-  # ── Frontend (Next.js) ───────────────────────────────────────────────
+  # ── Frontend (Next.js) ────────────────────────────────────────────────
   fe:
     image: 978022759902.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-fe:latest
     container_name: fe
     restart: unless-stopped
     depends_on:
-      be:
-        condition: service_healthy
+      - be
     networks:
       - appnet
     environment:
       NEXT_PUBLIC_API_BASE: "https://matuabom.store"
       NODE_ENV:             "production"
-    # 외부 직접 접근 차단 — nginx 경유만 허용
     expose:
       - "3000"
 
-  # ── AI 서비스 ─────────────────────────────────────────────────────────
+  # ── AI ────────────────────────────────────────────────────────────────
   ai:
     env_file: .env
     image: 978022759902.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-ai:latest
     container_name: ai
     restart: unless-stopped
     depends_on:
-      be:
-        condition: service_healthy
+      - be
     networks:
       - appnet
     environment:
       GEMINI_API_KEY: "${GEMINI_API_KEY}"
-    # 외부 직접 접근 차단 — nginx 경유만 허용
     expose:
       - "5000"
 
-  # ── Nginx (Reverse Proxy) ────────────────────────────────────────────
+  # ── Nginx ─────────────────────────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
     container_name: nginx
