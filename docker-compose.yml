@@ -53,6 +53,7 @@ services:
       - appnet
     environment:
       SPRING_DATA_MONGODB_URI: "mongodb://mongo:27017/matuabom"
+      MONGODB_URI:             "mongodb://mongo:27017/matuabom"
       POSTGRES_URL:            "${POSTGRES_URL}"
       POSTGRES_USER:           "${POSTGRES_USER}"
       POSTGRES_PASSWORD:       "${POSTGRES_PASSWORD}"
@@ -68,8 +69,16 @@ services:
       FRONTEND_ORIGIN:         "https://matuabom.store"
       BACKEND_BASE_URL:        "https://matuabom.store"
       COOKIE_SECURE:           "true"
+      ADMIN_SECRET:            "${ADMIN_SECRET}"
+      ENCRYPT_KEY:             "${ENCRYPT_KEY}"
+      GOOGLE_WEBHOOK_TOKEN:    "${GOOGLE_WEBHOOK_TOKEN}"
+      SPRING_PROFILES_ACTIVE:  "prod"
+      AI_BASE_URL:             "http://ai:5000"
+      AI_SECRET:               "${AI_SECRET}"
     expose:
       - "8080"
+    volumes:
+      - be_logs:/app/logs
     healthcheck:
       # curl은 BE push 후 이미지에 포함됨. 현재는 wget으로 유지
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
@@ -129,6 +138,7 @@ services:
 volumes:
   redis_data:
   mongo_data:
+  be_logs:
 
 networks:
   appnet:
