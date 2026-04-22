@@ -1,0 +1,161 @@
+# ============================================================
+# 로컬 ELK 스택
+# 사용법: docker compose -f docker-compose.local.yml up -d
+# ============================================================
+#
+# [전제 조건]
+#  - BE를 SPRING_PROFILES_ACTIVE=local 로 실행
+#  - BE 프로젝트 루트에 logs/ 디렉터리가 생성됨 (logback이 자동 생성)
+#  - BE_LOGS_PATH 환경변수로 logs/ 경로를 지정 (기본값: ../BE/logs)
+#
+# [접속 정보]
+#  Kibana       : http://localhost:5601
+#  Elasticsearch: http://localhost:9200
+#  Logstash     : 내부 전용 (포트 미노출)
+# ============================================================
+
+services:
+
+  # ── Elasticsearch ─────────────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node          # 단일 노드 모드 (로컬용)
+      - xpack.security.enabled=false        # 로컬이므로 보안 비활성
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m      # 메모리 제한
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - elknet
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  # ── Logstash ───────────────────────────────────────────────────────────
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.4
+    container_name: logstash
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx512m
+    volumes:
+      - ./logstash/pipeline/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./logstash/config/jvm.options:/usr/share/logstash/config/jvm.options:ro
+      # BE 로그 디렉터리 마운트 — 경로는 .env 또는 환경변수로 주입
+      - ${BE_LOGS_PATH:-../BE/logs}:/logs:ro
+    networks:
+      - elknet
+
+  # ── Kibana ────────────────────────────────────────────────────────────
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: kibana
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+    ports:
+      - "5601:5601"
+    networks:
+      - elknet
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q '\"overall\":{\"level\":\"available\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ── Prometheus ────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-remote-write-receiver'   # k6 → Prometheus 직접 전송용
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"    # 컨테이너 → 로컬 BE 접근
+    networks:
+      - elknet
+
+  # ── Grafana ───────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      # k6 플러그인 자동 설치
+      - GF_INSTALL_PLUGINS=grafana-k6-app
+      # k6 app 활성화
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=grafana-k6-app
+    volumes:
+      - grafana_data:/var/lib/grafana
+      # Datasource 자동 프로비저닝
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      # Dashboard 자동 프로비저닝
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"   # FE가 3000 사용 중이므로 3001로 노출
+    networks:
+      - elknet
+
+  # ── k6 (부하 테스트 실행기) ───────────────────────────────────────────
+  k6:
+    image: grafana/k6:0.51.0
+    container_name: k6
+    profiles:
+      - loadtest       # 평소엔 실행 안 됨. docker compose --profile loadtest up k6 로 실행
+    environment:
+      - K6_PROMETHEUS_RW_SERVER_URL=http://prometheus:9090/api/v1/write
+      - K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true
+      - BASE_URL=http://host.docker.internal:8080
+    volumes:
+      - ./k6/scripts:/scripts:ro
+    command: run --out experimental-prometheus-rw /scripts/load-test.js
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - elknet
+
+volumes:
+  es_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  elknet:
+    driver: bridge

@@ -1,0 +1,3 @@
+## JVM configuration — 로컬 메모리 절약용
+-Xms256m
+-Xmx512m

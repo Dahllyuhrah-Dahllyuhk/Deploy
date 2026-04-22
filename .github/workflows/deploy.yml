@@ -23,33 +23,7 @@ jobs:
           target:   "/home/ubuntu/Deploy"
           strip_components: 1
 
-      - name: Write .env file to server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host:     ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key:      ${{ secrets.DEPLOY_KEY }}
-          script: |
-            cat > /home/ubuntu/Deploy/.env << 'EOF'
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
-            KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            ENCRYPT_KEY=${{ secrets.ENCRYPT_KEY }}
-            GOOGLE_WEBHOOK_TOKEN=${{ secrets.GOOGLE_WEBHOOK_TOKEN }}
-            MONGODB_URI=${{ secrets.MONGODB_URI }}
-            MONGODB_NAME=matuabom
-            POSTGRES_URL=${{ secrets.POSTGRES_URL }}
-            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-            ADMIN_SECRET=${{ secrets.ADMIN_SECRET }}
-            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-            AI_SECRET=${{ secrets.AI_SECRET }}
-            EOF
-
-      - name: Reload nginx
+      - name: Pull new images & reload
         uses: appleboy/ssh-action@v1.0.3
         with:
           host:     ${{ secrets.DEPLOY_HOST }}
@@ -58,12 +32,21 @@ jobs:
           script: |
             cd /home/ubuntu/Deploy
 
+            # ECR 로그인
+            aws ecr get-login-password --region ap-northeast-2 | \
+              docker login --username AWS --password-stdin \
+              978022759902.dkr.ecr.ap-northeast-2.amazonaws.com
+
+            # 최신 이미지 pull
+            docker compose pull fe be ai
+
             NGINX_RUNNING=$(docker compose ps nginx --status running -q 2>/dev/null | wc -l)
 
             if [ "$NGINX_RUNNING" -gt "0" ]; then
+              docker compose up -d --no-deps fe be ai
               docker compose exec nginx nginx -t || { echo "nginx 설정 오류"; exit 1; }
               docker compose exec nginx nginx -s reload
-              echo "nginx 리로드 완료"
+              echo "배포 완료"
             else
               echo "전체 스택 기동"
               docker compose up -d

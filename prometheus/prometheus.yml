@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 10s       # 10초마다 메트릭 수집
+  evaluation_interval: 10s
+
+scrape_configs:
+
+  # ── Spring Boot BE ─────────────────────────────────────────────────
+  - job_name: 'matuabom-be'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+        labels:
+          app: 'matuabom'
+          env: 'local'
+
+  # ── Prometheus 자체 메트릭 ──────────────────────────────────────────
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
