@@ -51,12 +51,10 @@ jobs:
           script: |
             cd /home/ubuntu/Deploy
 
-            # ECR 로그인
-            aws ecr get-login-password --region ap-northeast-2 | \
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
               docker login --username AWS --password-stdin \
-              978022759902.dkr.ecr.ap-northeast-2.amazonaws.com
+              ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
-            # 최신 이미지 pull
             docker compose pull fe be ai
 
             NGINX_RUNNING=$(docker compose ps nginx --status running -q 2>/dev/null | wc -l)
@@ -72,7 +70,7 @@ jobs:
             fi
 
       - name: Configure AWS Security Group Revoke
-        if: always()
+        if: always() && steps.ip.outputs.ipv4 != ''
         run: |
           aws ec2 revoke-security-group-ingress \
             --group-id ${{ secrets.AWS_SG_ID }} \
