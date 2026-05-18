@@ -55,6 +55,7 @@ jobs:
               docker login --username AWS --password-stdin \
               ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
+            docker system prune -f
             docker compose pull fe be ai
 
             NGINX_RUNNING=$(docker compose ps nginx --status running -q 2>/dev/null | wc -l)
