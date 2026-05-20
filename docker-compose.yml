@@ -59,7 +59,6 @@ services:
 
   # ── Backend (Spring Boot) ─────────────────────────────────────────────
   be:
-    env_file: .env
     image: 978022759902.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-be:latest
     container_name: be
     restart: unless-stopped
@@ -86,7 +85,6 @@ services:
       KAKAO_CLIENT_SECRET:     "${KAKAO_CLIENT_SECRET}"
       GOOGLE_CLIENT_ID:        "${GOOGLE_CLIENT_ID}"
       GOOGLE_CLIENT_SECRET:    "${GOOGLE_CLIENT_SECRET}"
-      GEMINI_API_KEY:          "${GEMINI_API_KEY}"
       FRONTEND_ORIGIN:         "${FRONTEND_ORIGIN}"
       BACKEND_BASE_URL:        "${BACKEND_BASE_URL}"
       COOKIE_SECURE:           "${COOKIE_SECURE}"
@@ -96,8 +94,6 @@ services:
       ENCRYPT_KEY:             "${ENCRYPT_KEY}"
       GOOGLE_WEBHOOK_TOKEN:    "${GOOGLE_WEBHOOK_TOKEN}"
       SPRING_PROFILES_ACTIVE:  "${SPRING_PROFILES_ACTIVE}"
-      AI_BASE_URL:             "http://ai:5000"
-      AI_SECRET:               "${AI_SECRET}"
     expose:
       - "8080"
     volumes:
@@ -124,21 +120,6 @@ services:
     expose:
       - "3000"
 
-  # ── AI ────────────────────────────────────────────────────────────────
-  ai:
-    env_file: .env
-    image: 978022759902.dkr.ecr.ap-northeast-2.amazonaws.com/matuabom-ai:latest
-    container_name: ai
-    restart: unless-stopped
-    depends_on:
-      - be
-    networks:
-      - appnet
-    environment:
-      GEMINI_API_KEY: "${GEMINI_API_KEY}"
-    expose:
-      - "5000"
-
   # ── Nginx ─────────────────────────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
@@ -147,7 +128,6 @@ services:
     depends_on:
       - fe
       - be
-      - ai
     networks:
       - appnet
     ports:
