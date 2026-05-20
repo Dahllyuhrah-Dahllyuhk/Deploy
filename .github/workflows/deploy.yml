@@ -2,7 +2,7 @@ name: Deploy Config & Full Stack
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch: {}
 
 jobs:
@@ -56,12 +56,12 @@ jobs:
               ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
             docker system prune -f
-            docker compose pull fe be ai
+            docker compose pull fe be
 
             NGINX_RUNNING=$(docker compose ps nginx --status running -q 2>/dev/null | wc -l)
 
             if [ "$NGINX_RUNNING" -gt "0" ]; then
-              docker compose up -d --no-deps fe be ai
+              docker compose up -d --no-deps fe be
               docker compose exec nginx nginx -t || { echo "nginx 설정 오류"; exit 1; }
               docker compose exec nginx nginx -s reload
               echo "배포 완료"
