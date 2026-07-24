@@ -1,0 +1,20 @@
+# 이 파일을 terraform.tfvars 로 복사한 뒤 값을 조정하세요.
+# (민감값은 여기에 두지 않습니다 — 시크릿은 SSM Parameter Store로 관리)
+# cp terraform.tfvars.example terraform.tfvars
+
+region        = "ap-northeast-2"
+aws_profile   = "matuabom"
+project       = "matuabom"
+domain        = "matuabom.store"
+api_subdomain = "api"
+instance_type = "t3.micro"
+
+# GitHub OIDC (CI/CD)
+github_repo   = "Dahllyuhrah-Dahllyuhk/BE"
+github_branch = "develop"
+
+# SSH를 열려면 CIDR를 지정 (예: "1.2.3.4/32"). 비우면 22 포트를 열지 않고
+# SSM Session Manager로만 접속합니다.
+ssh_cidr = ""
+
+container_image_tag = "latest"
